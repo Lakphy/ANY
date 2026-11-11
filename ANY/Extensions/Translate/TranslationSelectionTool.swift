@@ -2,9 +2,9 @@ import Observation
 import SwiftUI
 
 /// Translation in the selection popup: every service at once, one card each, filling in as each
-/// answers rather than all together. Selections can be in any language, so the source is always
-/// detected and the target chosen automatically, whatever the translate page is set to; the
-/// target can be changed for this selection only.
+/// answers rather than all together. Selections can be in any language, so by default the source
+/// is detected and the target chosen automatically, whatever the translate page is set to; either
+/// side can be changed for this selection only.
 @Observable
 final class TranslationSelectionSession: SelectionSession {
     enum Outcome {
@@ -20,6 +20,8 @@ final class TranslationSelectionSession: SelectionSession {
 
     let text: String
     private(set) var target: TranslationLanguage
+    /// Nil detects the language of the text.
+    private(set) var sourceOverride: TranslationLanguage?
     private(set) var entries: [Entry] = []
     private(set) var aiSession: AITranslationSession?
     var selected: TranslationService?
@@ -94,7 +96,7 @@ final class TranslationSelectionSession: SelectionSession {
     /// The translate page picks up where the popup is: same direction, so it reuses the cached
     /// results, and the requests and AI translation still in flight carry on for it.
     private func handOff() {
-        ext.preferences.sourceLanguage = nil
+        ext.preferences.sourceLanguage = sourceOverride
         ext.preferences.targetLanguage = targetOverride
         isHandedOff = true
     }
@@ -106,8 +108,9 @@ final class TranslationSelectionSession: SelectionSession {
         entries.map(\.service) + (aiSession == nil ? [] : [.ai])
     }
 
-    /// The language detected from the first answer, or on device until one arrives.
+    /// The chosen language, or the one detected from the first answer, or on device until one arrives.
     var source: TranslationLanguage? {
+        if let sourceOverride { return sourceOverride }
         for entry in entries {
             if case .success(let translation) = entry.outcome, let source = translation.source { return source }
         }
@@ -152,9 +155,28 @@ final class TranslationSelectionSession: SelectionSession {
         }
     }
 
+    /// Choosing the language on the other side swaps the two, so they never match.
+    func translate(from language: TranslationLanguage?) {
+        guard language != sourceOverride else { return }
+        if let language, language == target {
+            targetOverride = source ?? (language == ext.preferences.primaryLanguage ? ext.preferences.secondaryLanguage : ext.preferences.primaryLanguage)
+        }
+        sourceOverride = language
+        start()
+    }
+
     func translate(to language: TranslationLanguage) {
         guard language != target else { return }
+        if language == sourceOverride { sourceOverride = target }
         targetOverride = language
+        start()
+    }
+
+    /// Flips the direction, turning the detected source into a concrete language.
+    func swapLanguages() {
+        let newTarget = source ?? (target == ext.preferences.primaryLanguage ? ext.preferences.secondaryLanguage : ext.preferences.primaryLanguage)
+        sourceOverride = target
+        targetOverride = newTarget
         start()
     }
 
@@ -169,9 +191,9 @@ final class TranslationSelectionSession: SelectionSession {
     private func start() {
         task?.cancel()
         let preferences = ext.preferences
-        let source: TranslationLanguage? = nil
-        let target = targetOverride ?? preferences.automaticTarget(for: text)
-        let correcting = targetOverride == nil
+        let source = sourceOverride
+        let target = targetOverride ?? preferences.automaticTarget(for: text, source: source)
+        let correcting = sourceOverride == nil && targetOverride == nil
         let services = preferences.availableServices
         self.target = target
         hasAdoptedDirection = false
@@ -226,65 +248,121 @@ final class TranslationSelectionSession: SelectionSession {
 
     /// Keeps the header, and the AI request, on the language a service actually translated into.
     private func adoptAutomaticTarget(_ language: TranslationLanguage) {
-        guard !hasAdoptedDirection, targetOverride == nil, ext.preferences.correctsAutomatically else { return }
+        guard !hasAdoptedDirection, sourceOverride == nil, targetOverride == nil else { return }
         hasAdoptedDirection = true
         guard language != target else { return }
         target = language
         guard let configuration = ext.preferences.aiConfiguration else { return }
-        aiSession = ext.aiSession(for: text, from: ext.preferences.sourceLanguage, to: language, configuration: configuration)
+        aiSession = ext.aiSession(for: text, from: nil, to: language, configuration: configuration)
     }
 }
 
 // MARK: - Header
 
-/// "英语 → 简体中文", with the target as a menu.
+/// "英语 ⇄ 简体中文": both sides are menus, and the arrow swaps them.
 private struct LanguageDirection: View {
     let session: TranslationSelectionSession
+
+    private var detectedName: String { session.source?.name ?? "自动检测" }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            PopupLanguageMenu(
+                title: detectedName,
+                isSecondary: session.sourceOverride == nil,
+                help: "源语言",
+                automaticTitle: session.sourceOverride == nil && session.source != nil ? "自动检测（\(detectedName)）" : "自动检测",
+                selection: session.sourceOverride,
+                select: session.translate(from:)
+            )
+            SwapButton(action: session.swapLanguages)
+            PopupLanguageMenu(
+                title: session.target.name,
+                help: "目标语言",
+                selection: session.target,
+                select: { if let language = $0 { session.translate(to: language) } }
+            )
+        }
+        .font(Theme.Typography.bodyMedium)
+    }
+}
+
+private struct PopupLanguageMenu: View {
+    let title: String
+    /// Detected rather than chosen, so it's shown quieter.
+    var isSecondary = false
+    let help: String
+    /// Offered first when the side can be automatic.
+    var automaticTitle: String?
+    let selection: TranslationLanguage?
+    let select: (TranslationLanguage?) -> Void
 
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: Theme.Space.xs) {
-            Text(session.source?.name ?? "自动检测")
-                .foregroundStyle(.secondary)
-                .contentTransition(.interpolate)
-            Image(systemName: "arrow.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.tertiary)
-            Menu {
-                ForEach(TranslationLanguage.allCases) { language in
-                    Button {
-                        session.translate(to: language)
-                    } label: {
-                        if language == session.target {
-                            Label(language.name, systemImage: "checkmark")
-                        } else {
-                            Text(language.name)
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 3) {
-                    Text(session.target.name)
-                        .contentTransition(.interpolate)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, Theme.Space.s)
-                .frame(height: 24)
-                .background(.fill.tertiary.opacity(isHovering ? 1 : 0), in: .capsule)
-                .contentShape(.capsule)
+        Menu {
+            if let automaticTitle {
+                option(automaticTitle, language: nil)
+                Divider()
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .onHover { isHovering = $0 }
-            .animation(Motion.hoverSelection, value: isHovering)
-            .help("目标语言")
+            ForEach(TranslationLanguage.allCases) { option($0.name, language: $0) }
+        } label: {
+            HStack(spacing: 3) {
+                Text(title)
+                    .foregroundStyle(isSecondary ? .secondary : .primary)
+                    .contentTransition(.interpolate)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, Theme.Space.s)
+            .frame(height: 24)
+            .background(.fill.tertiary.opacity(isHovering ? 1 : 0), in: .capsule)
+            .contentShape(.capsule)
         }
-        .font(Theme.Typography.bodyMedium)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onHover { isHovering = $0 }
+        .animation(Motion.hoverSelection, value: isHovering)
+        .help(help)
+    }
+
+    private func option(_ title: String, language: TranslationLanguage?) -> some View {
+        Button {
+            select(language)
+        } label: {
+            if language == selection {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+}
+
+private struct SwapButton: View {
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isHovering ? "arrow.left.arrow.right" : "arrow.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(isHovering ? .primary : .tertiary)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 22, height: 22)
+                .background(.fill.tertiary.opacity(isHovering ? 1 : 0), in: .circle)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .onHover { isHovering = $0 }
+        .animation(Motion.hoverSelection, value: isHovering)
+        .help("交换语言")
+        .accessibilityLabel("交换语言")
     }
 }
 
