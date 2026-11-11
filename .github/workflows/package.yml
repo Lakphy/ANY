@@ -1,0 +1,79 @@
+name: Package
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: xcode-27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Bundle document runtime
+        working-directory: Runtime
+        run: |
+          npm ci
+          npm run build
+
+      - name: Select Xcode 27.2
+        run: sudo xcode-select -s /Applications/Xcode_27.2.app
+
+      - name: Build unsigned Release
+        run: |
+          xcodebuild \
+            -project ANY.xcodeproj \
+            -scheme ANY \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            ENABLE_HARDENED_RUNTIME=NO \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Release/ANY.app"
+          binary="$app/Contents/MacOS/ANY"
+          minos="$(xcrun vtool -show-build "$binary" | awk '/minos/ { print $2; exit }')"
+          major="${minos%%.*}"
+          if [ "${major:-0}" -lt 27 ]; then
+            echo "ANY.app minimum system is ${minos:-unknown}; expected macOS 27 or newer"
+            exit 1
+          fi
+          plist_min="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist")"
+          plist_major="${plist_min%%.*}"
+          if [ "${plist_major:-0}" -lt 27 ]; then
+            echo "LSMinimumSystemVersion is ${plist_min:-missing}; expected macOS 27 or newer"
+            exit 1
+          fi
+          # arm64 binaries keep the linker's ad-hoc signature. Reject a Developer ID / Apple Development certificate.
+          details="$(codesign -dv "$app" 2>&1 || true)"
+          printf '%s\n' "$details"
+          if printf '%s\n' "$details" | grep -q '^Authority='; then
+            echo "ANY.app has a signing certificate; this package must not be signed"
+            exit 1
+          fi
+          if printf '%s\n' "$details" | grep -E '^TeamIdentifier=' | grep -qv 'not set'; then
+            echo "ANY.app has a Developer Team; this package must not be signed"
+            exit 1
+          fi
+          ditto -c -k --keepParent --norsrc "$app" "$RUNNER_TEMP/ANY-macos.zip"
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/ANY-macos.zip
+          if-no-files-found: error
+          archive: false

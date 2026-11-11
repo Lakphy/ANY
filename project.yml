@@ -2,7 +2,7 @@ name: ANY
 options:
   bundleIdPrefix: com.lakphy
   deploymentTarget:
-    macOS: "26.0"
+    macOS: "27.0"
   createIntermediateGroups: true
   developmentLanguage: zh-Hans
 settings:
@@ -30,6 +30,7 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSAppleEventsUsageDescription: ANY 需要控制 Finder 与系统事件，以执行清空废纸篓、切换外观等系统命令。
         NSHumanReadableCopyright: Copyright © 2026 lakphy. All rights reserved.
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
     entitlements:
       path: ANY/Resources/ANY.entitlements
       properties:
