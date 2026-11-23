@@ -104,7 +104,8 @@ struct ExtensionSettingsPage: View {
 struct AboutView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
-            ItemIconView(icon: .symbol("sparkle.magnifyingglass"), size: Theme.IconSize.hero)
+            ItemIconView(icon: .file(Bundle.main.bundlePath), size: Theme.IconSize.hero)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text("ANY")
                     .font(Theme.Typography.title.weight(.semibold))

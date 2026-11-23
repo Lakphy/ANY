@@ -57,6 +57,7 @@
 		B8C9B3E640C8575B7B6BFD89 /* UsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE433E4799C0E8D21DF88E2 /* UsageStore.swift */; };
 		BD5D5BCEDE61AB3811B2AEBA /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39649442A55751CFA112860B /* AppCoordinator.swift */; };
 		C05A23B5F96A998E8125E1A9 /* SelectionPopupController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9B03398789DFE66FD0879B /* SelectionPopupController.swift */; };
+		C7233FF763FF64A9CF40F972 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2A57E3B6F802EBB1815405DE /* AppIcon.icon */; };
 		C9BFE766FFC64417B01661FF /* kit-reference.md in Resources */ = {isa = PBXBuildFile; fileRef = 8E88734A1AA0D2414F3330AA /* kit-reference.md */; };
 		D0A8CA66ED24782CA9C8CA1D /* SettingsDataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66834BA8134804B7C4BD3837 /* SettingsDataSource.swift */; };
 		D1F899E74D63440C5F358BA0 /* SettingsPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F626CF4E7AA0A6C394C6B7 /* SettingsPages.swift */; };
@@ -90,6 +91,7 @@
 		217A59BCE9BF50DBCFFC6645 /* SelectionPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionPopupView.swift; sourceTree = "<group>"; };
 		22A57EC82AE209D296BAD79F /* ClipboardExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardExtension.swift; sourceTree = "<group>"; };
 		28B4DF78F07483E84150F1FC /* TranslationSelectionTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationSelectionTool.swift; sourceTree = "<group>"; };
+		2A57E3B6F802EBB1815405DE /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		3433B4E63665611C6224AA83 /* TranslationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationHistory.swift; sourceTree = "<group>"; };
 		37E7A09031C82BB1415BEC0B /* BuiltinExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltinExtensions.swift; sourceTree = "<group>"; };
 		38E514639488256AAB09686B /* ItemIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemIconView.swift; sourceTree = "<group>"; };
@@ -334,6 +336,7 @@
 			isa = PBXGroup;
 			children = (
 				CB1922E1DDAB4713468E9984 /* ANY.entitlements */,
+				2A57E3B6F802EBB1815405DE /* AppIcon.icon */,
 				F0B63C782360C0951F27A98F /* Assets.xcassets */,
 				3B48AC51A354109C3B561E30 /* Info.plist */,
 				631872D750FE3333F119E276 /* DocumentRuntime */,
@@ -497,6 +500,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7233FF763FF64A9CF40F972 /* AppIcon.icon in Resources */,
 				63993CCBBA8FF29248E7FA5B /* Assets.xcassets in Resources */,
 				C9BFE766FFC64417B01661FF /* kit-reference.md in Resources */,
 				6F2AC3F77A26A85167CBEBDF /* runtime.js in Resources */,

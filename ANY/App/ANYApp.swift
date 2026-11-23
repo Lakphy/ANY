@@ -5,8 +5,10 @@ struct ANYApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("ANY", systemImage: "sparkle.magnifyingglass") {
+        MenuBarExtra {
             MenuBarContent(coordinator: appDelegate.coordinator)
+        } label: {
+            Label("ANY", image: "ANYCompass")
         }
     }
 }
